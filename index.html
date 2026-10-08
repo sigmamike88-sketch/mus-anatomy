@@ -700,6 +700,53 @@
         transform: translateX(-50%) translateY(0);
       }
 
+      /* Condescending quote popup */
+      .quote-popup {
+        position: fixed;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-150%) scale(0.85);
+        color: #fff;
+        padding: 18px 26px 18px 56px;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 600;
+        max-width: 90%;
+        width: 460px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+        transition:
+          transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+          opacity 0.3s ease;
+        z-index: 2000;
+        pointer-events: none;
+        line-height: 1.5;
+        opacity: 0;
+      }
+      .quote-popup.show {
+        transform: translateX(-50%) translateY(0) scale(1);
+        opacity: 1;
+      }
+      .quote-popup .quote-mark {
+        position: absolute;
+        left: 16px;
+        top: 8px;
+        font-size: 44px;
+        opacity: 0.55;
+        line-height: 1;
+        font-family: Georgia, serif;
+      }
+      .quote-popup .quote-text {
+        font-style: italic;
+        margin-bottom: 4px;
+      }
+      .quote-popup .quote-author {
+        font-size: 12px;
+        font-weight: 700;
+        opacity: 0.85;
+        text-align: right;
+        letter-spacing: 0.5px;
+      }
+
       /* Search */
       .search-input {
         width: 100%;
@@ -1520,6 +1567,13 @@
     </div>
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
+
+    <!-- CONDESCENDING QUOTE POPUP -->
+    <div class="quote-popup" id="quote-popup">
+      <div class="quote-mark">❝</div>
+      <div class="quote-text" id="quote-text"></div>
+      <div class="quote-author" id="quote-author"></div>
+    </div>
 
     <script>
       // ============================================================
@@ -18250,6 +18304,10 @@
 
       const STORAGE_KEY = "studyApp.v2";
       const SRS_KEY = "studyApp.srs.v2";
+      // Stable key for a question — survives shuffling and reloads
+      function qKey(q) {
+        return (q.id || q.no || "") + "::" + q.question;
+      }
 
       // State
       let studyData = [...originalData];
@@ -18265,6 +18323,334 @@
       let srsIndex = 0;
       let srsFlipped = false;
       let srsStats = { hard: 0, good: 0, easy: 0 };
+
+      // ---------- CONDESCENDING QUOTES ----------
+      const CONDESCENDING_CORRECT = [
+        {
+          text: "Oh wow, you got one right. Don't let it go to your head.",
+          author: "Reality",
+        },
+        {
+          text: "A broken clock is right twice a day too.",
+          author: "Everyone",
+        },
+        {
+          text: "Even a blind squirrel finds a nut sometimes.",
+          author: "Your Professor",
+        },
+        {
+          text: "Congrats. You've peaked. It's all downhill from here.",
+          author: "The Universe",
+        },
+        {
+          text: "Wow, basic recall. Truly Nobel-worthy.",
+          author: "Sarcasm Inc.",
+        },
+        {
+          text: "Correct. Statistically, that had to happen eventually.",
+          author: "Math",
+        },
+        {
+          text: "Look at you, remembering things. Adorable.",
+          author: "Your Ex",
+        },
+        {
+          text: "One correct answer won't save your GPA, but sure, celebrate.",
+          author: "Reality Check",
+        },
+        {
+          text: "A stopped watch, a broken compass... and yet here you are.",
+          author: "Destiny",
+        },
+        {
+          text: "Don't get cocky. That was the easy one.",
+          author: "The Next Question",
+        },
+      ];
+
+      const CONDESCENDING_WRONG = [
+        { text: "Wrong. Shocking absolutely no one.", author: "Everyone" },
+        {
+          text: "Are you even trying? Because it doesn't look like it.",
+          author: "Your Brain",
+        },
+        {
+          text: "You're going to fail this exam. I hope you know that.",
+          author: "Reality",
+        },
+        {
+          text: "That was painful to watch. And I'm a popup.",
+          author: "This Box",
+        },
+        {
+          text: "Maybe try actually studying next time?",
+          author: "Common Sense",
+        },
+        {
+          text: "Wrong again. Consistency is key, I guess.",
+          author: "Sarcasm Inc.",
+        },
+        {
+          text: "I'd say 'nice try' but honestly, it wasn't.",
+          author: "The Void",
+        },
+        { text: "Your future self is crying right now.", author: "Regret" },
+        {
+          text: "That answer was a cry for help.",
+          author: "Concerned Observer",
+        },
+        {
+          text: "Bold of you to guess. Bold and incorrect.",
+          author: "The Answer Key",
+        },
+        {
+          text: "Somewhere, your professor just felt a disturbance.",
+          author: "The Force",
+        },
+        {
+          text: "Wrong. Again. It's becoming a pattern.",
+          author: "Pattern Recognition",
+        },
+        {
+          text: "Have you considered a different career path?",
+          author: "Career Services",
+        },
+        {
+          text: "You miss 100% of the shots you don't take. You also missed this one.",
+          author: "Wayne Gretzky",
+        },
+        {
+          text: "I'm not mad. I'm just disappointed.",
+          author: "Everyone Who Knows You",
+        },
+        {
+          text: "The answer was right there. NEXT TO YOUR GUESS.",
+          author: "The Screen",
+        },
+        { text: "Wow. That's impressively wrong.", author: "Your Textbook" },
+        {
+          text: "Failure is a great teacher. You must be getting a PhD in it.",
+          author: "Life",
+        },
+        {
+          text: "At this rate, you'll be retaking this class. See you next semester.",
+          author: "The Registrar",
+        },
+        {
+          text: "Did you even read the question, or did you just pick the longest word?",
+          author: "Basic Literacy",
+        },
+        {
+          text: "You had a 25% chance and still blew it. That takes real talent.",
+          author: "Statistics",
+        },
+        { text: "This is why we can't have nice things.", author: "Society" },
+        {
+          text: "Your study technique appears to be 'vibes and hope.'",
+          author: "The Scientific Method",
+        },
+        {
+          text: "The good news: you're consistent. The bad news: consistently wrong.",
+          author: "Your GPA",
+        },
+        {
+          text: "You guessed, didn't you? I can always tell.",
+          author: "The Omnipotent Quiz",
+        },
+        {
+          text: "I've seen lab rats do better. And they get cheese.",
+          author: "Research Dept.",
+        },
+        {
+          text: "That wasn't even in the same timezone as the right answer.",
+          author: "Geography",
+        },
+        {
+          text: "Your parents' tuition money just evaporated a little more.",
+          author: "Financial Aid",
+        },
+        {
+          text: "Wrong answer. But hey, at least you're consistent.",
+          author: "Your Transcript",
+        },
+        {
+          text: "If confusion was a major, you'd have honors.",
+          author: "Academic Advising",
+        },
+        {
+          text: "You just made the wrong answer feel even more wrong.",
+          author: "Mathematics",
+        },
+        {
+          text: "I believe in you. I just don't believe in your answers.",
+          author: "Tough Love",
+        },
+        {
+          text: "Close! ...In the way that Antarctica is close to the moon.",
+          author: "Perspective",
+        },
+        {
+          text: "That was not the answer. That wasn't even a guess.",
+          author: "The Void",
+        },
+        {
+          text: "The bar was on the floor and you brought a shovel.",
+          author: "Standards",
+        },
+        {
+          text: "Somewhere a teacher just retired early because of you.",
+          author: "The Education System",
+        },
+        {
+          text: "You're not failing. You're just... aggressively not passing.",
+          author: "Spin Doctor",
+        },
+        {
+          text: "That answer was a tragedy in one act.",
+          author: "Shakespeare",
+        },
+        { text: "Nailed it. Just... the wrong one.", author: "Carpentry" },
+        {
+          text: "If wrong answers were currency, you'd be a millionaire.",
+          author: "Wall Street",
+        },
+        {
+          text: "You picked that with your whole chest, didn't you?",
+          author: "Secondhand Embarrassment",
+        },
+        {
+          text: "The correct answer is watching you from a distance, shaking its head.",
+          author: "Narrator",
+        },
+        {
+          text: "You've got potential. Potential to fail spectacularly.",
+          author: "Motivational Poster",
+        },
+        {
+          text: "This is a safe space to admit you didn't study.",
+          author: "Group Therapy",
+        },
+        {
+          text: "I'd tell you to try again, but I think we both know how that ends.",
+          author: "Experience",
+        },
+        {
+          text: "That answer was so wrong it should be studied.",
+          author: "Research Team",
+        },
+        {
+          text: "Your confidence is inspiring. Your accuracy is not.",
+          author: "Reality",
+        },
+        {
+          text: "I hope your exam has a curve. A big one. Like a mountain.",
+          author: "Your Future",
+        },
+        {
+          text: "You just got outsmarted by a static webpage.",
+          author: "Technology",
+        },
+        {
+          text: "If at first you don't succeed, maybe stop guessing.",
+          author: "Grandma",
+        },
+        {
+          text: "That wasn't a thought. That was a prayer.",
+          author: "The Universe",
+        },
+        {
+          text: "You're doing great... at being wrong.",
+          author: "Participation Trophy",
+        },
+        {
+          text: "The right answer called. It wants a divorce.",
+          author: "Relationship Advice",
+        },
+        {
+          text: "You just set a personal record. For failure.",
+          author: "Sports Commentator",
+        },
+        {
+          text: "I'm putting a note in your permanent record.",
+          author: "Principal's Office",
+        },
+        {
+          text: "That's the answer you're going with? Truly?",
+          author: "Disbelief",
+        },
+        {
+          text: "Even the wrong answers are embarrassed for you.",
+          author: "The Other Options",
+        },
+        {
+          text: "Your brain just filed for a mental health day.",
+          author: "HR",
+        },
+        {
+          text: "There's wrong, and then there's whatever that was.",
+          author: "Philosophy",
+        },
+        {
+          text: "You answered with the confidence of someone who has no idea.",
+          author: "Body Language Expert",
+        },
+        {
+          text: "This is why flashcards were invented. For you. Specifically.",
+          author: "The Inventor",
+        },
+        {
+          text: "You're not just wrong. You're creatively wrong.",
+          author: "Art Critic",
+        },
+      ];
+
+      // ---------- QUOTE SHUFFLING (no repeats until pool is exhausted) ----------
+      function shuffleQuotes(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      let WRONG_QUOTES = shuffleQuotes(CONDESCENDING_WRONG);
+      let RIGHT_QUOTES = shuffleQuotes(CONDESCENDING_CORRECT);
+      let wrongQuoteIdx = 0;
+      let rightQuoteIdx = 0;
+
+      function getCondescendingQuote(isCorrect) {
+        if (isCorrect) {
+          if (rightQuoteIdx >= RIGHT_QUOTES.length) {
+            RIGHT_QUOTES = shuffleQuotes(CONDESCENDING_CORRECT);
+            rightQuoteIdx = 0;
+          }
+          return RIGHT_QUOTES[rightQuoteIdx++];
+        } else {
+          if (wrongQuoteIdx >= WRONG_QUOTES.length) {
+            WRONG_QUOTES = shuffleQuotes(CONDESCENDING_WRONG);
+            wrongQuoteIdx = 0;
+          }
+          return WRONG_QUOTES[wrongQuoteIdx++];
+        }
+      }
+
+      function popQuote(isCorrect) {
+        const q = getCondescendingQuote(isCorrect);
+        const el = document.getElementById("quote-popup");
+        if (!el) return;
+        document.getElementById("quote-text").innerText = q.text;
+        document.getElementById("quote-author").innerText = "— " + q.author;
+        el.style.background = isCorrect
+          ? "linear-gradient(135deg, rgba(35,134,54,0.96), rgba(63,185,80,0.96))"
+          : "linear-gradient(135deg, rgba(218,54,51,0.96), rgba(233,30,99,0.96))";
+        el.classList.remove("show");
+        // force reflow so the animation replays even on rapid answers
+        void el.offsetWidth;
+        el.classList.add("show");
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => el.classList.remove("show"), 5000);
+      }
 
       // DOM refs
       const screens = {
@@ -18324,14 +18710,31 @@
 
       // ---------- Progress Save/Load ----------
       function saveProgress() {
+        // Convert index-keyed answers to stable-key-keyed so they survive
+        // a shuffle or a reload
+        const answersByKey = {};
+        Object.keys(userAnswers).forEach((idx) => {
+          const q = studyData[Number(idx)];
+          if (!q) return;
+          answersByKey[qKey(q)] = userAnswers[idx];
+        });
+        function clearSavedSession() {
+          window.__savedAnswersByKey = null;
+          window.__savedCurrentQuestionKey = null;
+          window.__savedStudyDataKeys = null;
+          window.__savedCurrentMode = null;
+        }
         const p = {
           currentIndex,
           currentMode,
-          userAnswers,
+          answersByKey,
+          currentQuestionKey: studyData[currentIndex]
+            ? qKey(studyData[currentIndex])
+            : null,
           shuffleEnabled,
           timerEnabled,
           isRetryMode,
-          studyDataIds: studyData.map((d) => d.question),
+          studyDataKeys: studyData.map(qKey),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
       }
@@ -18340,8 +18743,18 @@
           const raw = localStorage.getItem(STORAGE_KEY);
           if (!raw) return;
           const p = JSON.parse(raw);
+
           shuffleEnabled = !!p.shuffleEnabled;
           timerEnabled = !!p.timerEnabled;
+
+          // Stash the saved session so startMode() can consume it
+          if (p.answersByKey) {
+            window.__savedAnswersByKey = p.answersByKey;
+            window.__savedCurrentQuestionKey = p.currentQuestionKey || null;
+            window.__savedStudyDataKeys = p.studyDataKeys || null;
+            window.__savedCurrentMode = p.currentMode || null;
+          }
+
           const btn = document.getElementById("shuffle-btn");
           if (btn) {
             btn.classList.toggle("active", shuffleEnabled);
@@ -18352,7 +18765,9 @@
             tb.classList.toggle("active", timerEnabled);
             tb.innerText = "⏱️ Timer: " + (timerEnabled ? "ON" : "OFF");
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn("loadProgress failed:", e);
+        }
       }
       loadProgress();
 
@@ -18379,14 +18794,45 @@
       function startMode(mode) {
         currentMode = mode;
         currentIndex = 0;
-        quizAnswered = false;
 
         if (mode === "quiz" || mode === "fillblank") {
-          studyData = shuffleEnabled
-            ? shuffleArray(originalData)
-            : [...originalData];
-          userAnswers = {};
+          const savedKeys = window.__savedStudyDataKeys;
+          const savedAnswers = window.__savedAnswersByKey;
+          const savedMode = window.__savedCurrentMode;
+          const sameMode =
+            savedMode === mode ||
+            (savedMode === "quiz" && mode === "fillblank") ||
+            (savedMode === "fillblank" && mode === "quiz");
+
+          if (savedKeys && savedAnswers && sameMode && !isRetryMode) {
+            // Restore previous session order and answers
+            const byKey = {};
+            originalData.forEach((q) => {
+              byKey[qKey(q)] = q;
+            });
+            studyData = savedKeys.map((k) => byKey[k]).filter(Boolean);
+
+            userAnswers = {};
+            studyData.forEach((q, i) => {
+              const a = savedAnswers[qKey(q)];
+              if (a) userAnswers[i] = a;
+            });
+
+            if (window.__savedCurrentQuestionKey) {
+              const idx = studyData.findIndex(
+                (q) => qKey(q) === window.__savedCurrentQuestionKey,
+              );
+              if (idx >= 0) currentIndex = idx;
+            }
+          } else {
+            // Fresh session
+            studyData = shuffleEnabled
+              ? shuffleArray(originalData)
+              : [...originalData];
+            userAnswers = {};
+          }
           isRetryMode = false;
+
           document.getElementById("quiz-title").innerText =
             mode === "fillblank" ? "Fill in the Blank" : "Questions";
           document
@@ -18409,6 +18855,7 @@
       }
 
       function goHome() {
+        clearSavedSession(); // <-- add this
         currentMode = "home";
         clearInterval(timerInterval);
         showScreen("home");
@@ -18484,6 +18931,7 @@
         if (userAnswers[currentIndex]) return;
         const data = studyData[currentIndex];
         userAnswers[currentIndex] = { selected: null, correct: false };
+        popQuote(false);
         // reveal correct
         document.querySelectorAll(".quiz-option").forEach((b) => {
           b.disabled = true;
@@ -18601,6 +19049,8 @@
           correct: isCorrect,
         };
 
+        popQuote(isCorrect);
+
         document.querySelectorAll(".quiz-option").forEach((btn) => {
           btn.disabled = true;
           if (btn.dataset.value === data.answer) btn.classList.add("correct");
@@ -18633,6 +19083,7 @@
 
         userAnswers[currentIndex] = { selected: val, correct: isCorrect };
         inp.disabled = true;
+        popQuote(isCorrect);
         inp.classList.add(isCorrect ? "correct" : "wrong");
         document.getElementById("fib-submit").disabled = true;
         document.getElementById("fib-submit").innerText = isCorrect
@@ -18694,6 +19145,7 @@
       }
 
       function retryWrong() {
+        clearSavedSession();
         const wrongItems = [];
         studyData.forEach((item, idx) => {
           const a = userAnswers[idx];
@@ -18713,6 +19165,7 @@
       }
 
       function restartQuiz() {
+        clearSavedSession(); // <-- add this
         studyData = shuffleEnabled
           ? shuffleArray(originalData)
           : [...originalData];
